@@ -1,12 +1,13 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const http = require('http');
 const app = express();
 
 // API file for interacting with MongoDB
-const api = require('./api');
+//const api = require('./api');
 
-// Parsers
+// Parsers 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false}));
 
@@ -14,7 +15,7 @@ app.use(bodyParser.urlencoded({ extended: false}));
 app.use(express.static(path.join(__dirname, 'web-app')));
 
 // API location
-app.use('/api', api);
+//app.use('/api', api);
 
 // Send all other requests to the Angular app
 app.get('*', (req, res) => {
@@ -23,7 +24,7 @@ app.get('*', (req, res) => {
 
 //Set Port
 const port = process.env.PORT || '3000';
-app.set('port', port);
+app.set('port', port); 
 
 const server = http.createServer(app);
 
