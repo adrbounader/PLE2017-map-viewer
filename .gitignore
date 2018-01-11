@@ -1,2 +1,6 @@
-spark_app/target
+/spark_app/target
+/spark_app/.classpath
+/spark_app/.project
+/spark_app/.settings/
 
+/server/node_modules/
