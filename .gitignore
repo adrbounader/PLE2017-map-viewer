@@ -2,5 +2,6 @@
 /spark_app/.classpath
 /spark_app/.project
 /spark_app/.settings/
+/spark_app/.metadata/
 
 /server/node_modules/
