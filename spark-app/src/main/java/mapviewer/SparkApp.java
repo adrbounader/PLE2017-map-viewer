@@ -25,31 +25,21 @@ public class SparkApp {
 		JavaRDD<String> rdd = context.textFile(inputPath);
 	
 		
-		String s = rdd.fold("0,0", (lastCompute,current) -> {
-
+		int elevationMax = rdd.map((line) -> {
+			int elevation = -1;
 			try {
-				String[] lineSplitted = current.split(SEPARATOR);
+				String[] lineSplitted = line.split(SEPARATOR);
 				if (lineSplitted.length >= 3) {
-					String computeMinStr = lastCompute.split(SEPARATOR)[0];
-					String computeMaxStr = lastCompute.split(SEPARATOR)[1];
-					double computeMin = Double.parseDouble(computeMinStr);
-					double computeMax = Double.parseDouble(computeMaxStr);
-	
-					
-					String currentHeightStr = lineSplitted[INPUT_INDEX_HEIGHT];
-					double currentHeight = Double.parseDouble(currentHeightStr);
-					if (currentHeight > computeMax) {
-						lastCompute = computeMinStr + SEPARATOR + "50";
-					}
-					else if (currentHeight < computeMin) {
-						lastCompute = "-50" + SEPARATOR + computeMaxStr;
-					}
+					String elevationStr = lineSplitted[INPUT_INDEX_HEIGHT];
+					elevation = Integer.parseInt(elevationStr);
 				}
 		    } catch(Exception e) { }
-			return lastCompute;
+			return elevation;
+		}).reduce((elevation1, elevation2) -> {
+			return elevation1 > elevation2 ? elevation1 : elevation2; 
 		});
 
-		System.out.println("res : " + s);
+		System.out.println("res : " + elevationMax);
 		
 	}
 	
