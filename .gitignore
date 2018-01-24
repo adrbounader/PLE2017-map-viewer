@@ -1,7 +1,8 @@
-/spark_app/target
-/spark_app/.classpath
-/spark_app/.project
-/spark_app/.settings/
-/spark_app/.metadata/
+spark-app/target
+spark-app/.classpath
+spark-app/.project
+spark-app/.settings/
+spark-app/.metadata/
 
-/server/node_modules/
+
+server/node_modules/
