@@ -10,7 +10,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.spark.JavaHBaseContext;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
@@ -47,9 +47,10 @@ public class SparkApp {
 				
 				case "batch-layer": {
 					inputPath = "/raw_data/dem3_lat_lng.txt";
-					JavaRDD<Double[]> rdd = context.textFile(inputPath)
+					JavaRDD<String> rdd = context.textFile(inputPath)
 							.map(new mapviewer.dem3.Mapper())
-							.filter(new mapviewer.dem3.Filter());
+							.filter(new mapviewer.dem3.Filter())
+							.map((Double[] record) -> record[0] + "," + record[1] + "," + record[2]);
 
 					// open database connection
 					Configuration config = HBaseConfiguration.create();
@@ -70,13 +71,42 @@ public class SparkApp {
 						}
 		                admin.deleteTable(descriptor.getTableName());
 		            }
-		            admin.createTable(descriptor);
-
+		            admin.createTable(descriptor);		            
+		            
+		            JavaHBaseContext hbaseContext = new JavaHBaseContext(context, config);
+		            /*hbaseContext.bulkPut(rdd, , (Double[] record) -> {
+		            	
+		            }, true);
+		            */
+		            /*hbaseContext.bulkPut(rdd, Constants.HBASE_TABLE_NAME, (record) -> {
+		            	Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
+						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
+						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
+						put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+						return put;
+		            });*/
+		            hbaseContext.bulkPut(rdd, TableName.valueOf(Constants.HBASE_TABLE_NAME), (String line) -> {
+		            	Double[] parsedLine = null;
+		        		
+		        		String regexpOnlyNumber = "([^0-9\\.\\-]+)";
+	        			String latStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LAT].replaceAll(regexpOnlyNumber, "");
+	        			String lngStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LNG].replaceAll(regexpOnlyNumber, "");
+	        			String elevationStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_ELEVATION].replaceAll(regexpOnlyNumber, "");
+	        			parsedLine[Constants.INPUT_INDEX_LAT] = Double.parseDouble(latStr);
+	        			parsedLine[Constants.INPUT_INDEX_LNG] = Double.parseDouble(lngStr);
+	        			parsedLine[Constants.INPUT_INDEX_ELEVATION] = Double.parseDouble(elevationStr);
+		        		
+		        		Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
+						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(parsedLine[0].toString()));
+						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(parsedLine[1].toString()));
+						put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(parsedLine[2].toString()));
+						return put;
+		            });
+		            
 		            admin.close();
-		            
 		            connection.close();
-		            
-										
+
+									/*	
 					rdd.foreach((Double[] record) -> {
 						// open database connection
 						Configuration config_lambda = HBaseConfiguration.create();
@@ -85,14 +115,11 @@ public class SparkApp {
 						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
 						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
 						
-						Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
-						put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+						
 						table.put(put);
 						
 						connection_lambda.close();
-					});
+					});*/
 					context.close();
 					break;
 				}
