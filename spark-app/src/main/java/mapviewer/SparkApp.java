@@ -13,18 +13,19 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 public class SparkApp {
 
-	private static final byte[] FAMILY_COORDINATES = "coor".getBytes();
-	private static final byte[] FAMILY_ELEV = "value".getBytes();
-	private static final byte[] TABLE_NAME = "testbm".getBytes();
-
+		private static final byte[] FAMILY_COORDINATES = Bytes.toBytes("coor");
+		private static final byte[] FAMILY_ELEV = Bytes.toBytes("value");
+		private static final byte[] TABLE_NAME = Bytes.toBytes("testbm");
 	
 	public static void main(String[] args) throws Exception {
+		
 		if (args.length > 0) {
 			String inputPath;
 			SparkConf conf = new SparkConf().setAppName("Map Viewer");
@@ -60,40 +61,46 @@ public class SparkApp {
 
 					Configuration config = null;
 					try {
-					       config = HBaseConfiguration.create();
-					       config.set("testBM", "10.0.8.3:16010");
-					       HBaseAdmin.checkHBaseAvailable(config);
-					       System.out.println("HBase is running!");
-					     } 
+						config = HBaseConfiguration.create();
+						config.set("hbase.zookeeper.quorum", "10.0.8.3");
+						HBaseAdmin.checkHBaseAvailable(config);
+						System.out.println("HBase is running!");
+			 		} 
 					catch (Exception ce){ 
 					        ce.printStackTrace();
 					}
 					 
 					Connection connection = ConnectionFactory.createConnection(config);
-					HTableDescriptor descriptor = new HTableDescriptor(TableName.valueOf(TABLE_NAME));
-					Admin admin = connection.getAdmin(); 
-		            admin.createTable(descriptor);
-					descriptor.addFamily(new HColumnDescriptor(FAMILY_COORDINATES));
-					Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
 					
+					HTableDescriptor descriptor = new HTableDescriptor(TableName.valueOf(TABLE_NAME));
+					descriptor.addFamily(new HColumnDescriptor(FAMILY_COORDINATES));
+					descriptor.addFamily(new HColumnDescriptor(FAMILY_ELEV));
+					
+					Admin admin = connection.getAdmin(); 
+					
+					if (admin.tableExists(descriptor.getTableName())) {
+		                admin.disableTable(descriptor.getTableName());
+		                admin.deleteTable(descriptor.getTableName());
+		            }
+		            admin.createTable(descriptor);
+					
+					Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
+										
 					int i = 1;
 					for (Double[] d: rddAnalysis) {
-						Put put = new Put(("key " + i).getBytes());
-						put.addColumn(FAMILY_COORDINATES, "lat".getBytes(), d[0].toString().getBytes());
-						put.addColumn(FAMILY_COORDINATES, "lng".getBytes(), d[1].toString().getBytes());
-						put.addColumn(FAMILY_ELEV, "elev".getBytes(), d[2].toString().getBytes());
+						Put put = new Put(Bytes.toBytes("key " + i));
+						put.addColumn(FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(d[0].toString()));
+						put.addColumn(FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(d[1].toString()));
+						put.addColumn(FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(d[2].toString()));
 						table.put(put);
 						i++;
 					}
+					break;
 				}
 				default: {
 					throw new Exception("Unknown program name.");
 				}
 			}
-			
-			
-			
-			
 		}
 		else {
 			throw new Exception("You should give a program name.");
