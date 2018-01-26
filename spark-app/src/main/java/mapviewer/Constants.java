@@ -1,5 +1,7 @@
 package mapviewer;
 
+import org.apache.hadoop.hbase.util.Bytes;
+
 public class Constants {
 	/**
 	 * Index in splitted line of the lattitude. 
@@ -20,4 +22,13 @@ public class Constants {
 	 * Separator in row of input.
 	 */
 	public static final String SEPARATOR = ",";
+	
+	/**
+	 * IP adresse for launch hbase connection.
+	 */
+	public static final String HBASE_IP_ADDRESS = "10.0.8.3";
+	
+	public static final byte[] HBASE_FAMILY_COORDINATES = Bytes.toBytes("coor");
+	public static final byte[] HBASE_FAMILY_ELEV = Bytes.toBytes("value");
+	public static final byte[] HBASE_TABLE_NAME = Bytes.toBytes("BounaderMarzinTable");
 }

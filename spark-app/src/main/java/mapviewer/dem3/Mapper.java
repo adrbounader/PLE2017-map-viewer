@@ -1,4 +1,4 @@
-package mapviewer.minmaxanalysis;
+package mapviewer.dem3;
 
 import org.apache.spark.api.java.function.Function;
 
@@ -10,17 +10,21 @@ import mapviewer.Constants;
 public class Mapper implements Function<String, Double[]> {
 	@Override
 	public Double[] call(String line) throws Exception {
-		Double[] parsedLine = { null, null, null };
+		Double[] parsedLine = null;
+		
+		String regexpOnlyNumber = "([^0-9\\.\\-]+)";
 		
 		try {
-			String latStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LAT];
-			String lngStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LNG];
-			String elevationStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_ELEVATION];
+			String latStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LAT].replaceAll(regexpOnlyNumber, "");
+			String lngStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_LNG].replaceAll(regexpOnlyNumber, "");
+			String elevationStr = line.split(Constants.SEPARATOR)[Constants.INPUT_INDEX_ELEVATION].replaceAll(regexpOnlyNumber, "");
 			parsedLine[Constants.INPUT_INDEX_LAT] = Double.parseDouble(latStr);
 			parsedLine[Constants.INPUT_INDEX_LNG] = Double.parseDouble(lngStr);
 			parsedLine[Constants.INPUT_INDEX_ELEVATION] = Double.parseDouble(elevationStr);
 	    }
-		catch(Exception e) {}
+		catch(Exception e) {
+			return null;
+		}
 		
 		return parsedLine;
 	}

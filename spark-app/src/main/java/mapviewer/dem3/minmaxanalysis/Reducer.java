@@ -1,4 +1,4 @@
-package mapviewer.minmaxanalysis;
+package mapviewer.dem3.minmaxanalysis;
 
 import org.apache.spark.api.java.function.Function2;
 
