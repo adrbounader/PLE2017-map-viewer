@@ -1,5 +1,9 @@
 package mapviewer;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -40,6 +44,7 @@ public class SparkApp {
 					System.out.println("Latitude: { min:" + latAnalysis[0] + ", max: " + latAnalysis[1] + " }");
 					System.out.println("Longitude: { min:" + lngAnalysis[0] + ", max: " + lngAnalysis[1] + " }");
 					System.out.println("Elevation: { min:" + elevationAnalysis[0] + ", max: " + elevationAnalysis[1] + " }");
+					System.out.println("\nRecords number: " + rddAnalysis.count());
 					
 					context.close();
 					break;
@@ -48,6 +53,7 @@ public class SparkApp {
 				case "batch-layer": {
 					inputPath = "/raw_data/dem3_lat_lng.txt";
 					JavaRDD<Double[]> rdd = context.textFile(inputPath)
+							.repartition(Integer.parseInt(conf.get("spark.executor.instances")))
 							.map(new mapviewer.dem3.Mapper())
 							.filter(new mapviewer.dem3.Filter());
 
@@ -71,29 +77,37 @@ public class SparkApp {
 		                admin.deleteTable(descriptor.getTableName());
 		            }
 		            admin.createTable(descriptor);
-
-		            admin.close();
+		            if (!admin.isTableEnabled(descriptor.getTableName())) {
+		            	admin.enableTable(descriptor.getTableName());
+		            }
 		            
+		            admin.close();
 		            connection.close();
 		            
-										
-					rdd.foreach((Double[] record) -> {
-						// open database connection
-						Configuration config_lambda = HBaseConfiguration.create();
+		            rdd.foreachPartition((partition) -> {
+		            	Configuration config_lambda = HBaseConfiguration.create();
 						config_lambda.set("hbase.zookeeper.quorum", "10.0.8.3");
 						HBaseAdmin.checkHBaseAvailable(config_lambda);
 						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
 						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
 						
-						Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
-						put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
-						table.put(put);
+						while(partition.hasNext()) {
+							Double[] record = partition.next();
+							Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
+							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
+							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
+							put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+							try {
+								table.put(put);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						}
 						
 						connection_lambda.close();
-					});
-					context.close();
+		            });
+		            
 					break;
 				}
 				default: {

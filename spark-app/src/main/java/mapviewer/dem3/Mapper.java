@@ -10,7 +10,7 @@ import mapviewer.Constants;
 public class Mapper implements Function<String, Double[]> {
 	@Override
 	public Double[] call(String line) throws Exception {
-		Double[] parsedLine = null;
+		Double[] parsedLine = new Double[3];
 		
 		String regexpOnlyNumber = "([^0-9\\.\\-]+)";
 		

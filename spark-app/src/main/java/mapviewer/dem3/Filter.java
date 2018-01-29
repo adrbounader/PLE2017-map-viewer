@@ -10,9 +10,14 @@ import mapviewer.Constants;
 public class Filter implements Function<Double[], Boolean> {
 	@Override
 	public Boolean call(Double[] line) throws Exception {
-		return  line != null && 
-				line[Constants.INPUT_INDEX_LAT] != null && line[Constants.INPUT_INDEX_LAT] >= -90 && line[Constants.INPUT_INDEX_LAT] <= 90 &&
-				line[Constants.INPUT_INDEX_LNG] != null && line[Constants.INPUT_INDEX_LNG] >= -180 && line[Constants.INPUT_INDEX_LNG] <= 180 &&
-				line[Constants.INPUT_INDEX_ELEVATION] != null && line[Constants.INPUT_INDEX_ELEVATION] >= -500 && line[Constants.INPUT_INDEX_ELEVATION] <= 9000				;
+		try {
+			return  line != null && line.length == 3 &&
+					line[Constants.INPUT_INDEX_LAT] >= -90 && line[Constants.INPUT_INDEX_LAT] <= 90 &&
+					line[Constants.INPUT_INDEX_LNG] >= -180 && line[Constants.INPUT_INDEX_LNG] <= 180 &&
+					line[Constants.INPUT_INDEX_ELEVATION] >= -500 && line[Constants.INPUT_INDEX_ELEVATION] <= 9000;
+		}
+		catch(Exception e)  {
+			return false;
+		}
 	}
 }
