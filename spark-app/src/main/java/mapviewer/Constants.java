@@ -29,6 +29,7 @@ public class Constants {
 	public static final String HBASE_IP_ADDRESS = "10.0.8.3";
 	
 	public static final byte[] HBASE_FAMILY_COORDINATES = Bytes.toBytes("coor");
-	public static final byte[] HBASE_FAMILY_ELEV = Bytes.toBytes("value");
+	public static final byte[] HBASE_FAMILY_ELEV = Bytes.toBytes("elevValue");
+	public static final byte[] HBASE_FAMILY_COLOR = Bytes.toBytes("colorValue");
 	public static final byte[] HBASE_TABLE_NAME = Bytes.toBytes("BounaderMarzinTable");
 }

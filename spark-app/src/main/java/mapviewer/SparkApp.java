@@ -1,3 +1,9 @@
+/*Latitude: { min:0.0, max: 59.99916736 }
+Longitude: { min:-180.0, max: 179.0009992 }
+Elevation: { min:-160.0, max: 7430.0 }
+
+Records number: 8124743863*/
+
 package mapviewer;
 
 import java.io.IOException;
@@ -53,7 +59,7 @@ public class SparkApp {
 				case "batch-layer": {
 					inputPath = "/raw_data/dem3_lat_lng.txt";
 					JavaRDD<Double[]> rdd = context.textFile(inputPath)
-							.repartition(Integer.parseInt(conf.get("spark.executor.instances")))
+							.repartition(Integer.parseInt(conf.get("spark.executor.instances")) * 1000)
 							.map(new mapviewer.dem3.Mapper())
 							.filter(new mapviewer.dem3.Filter());
 
@@ -67,6 +73,7 @@ public class SparkApp {
 					HTableDescriptor descriptor = new HTableDescriptor(TableName.valueOf(Constants.HBASE_TABLE_NAME));
 					descriptor.addFamily(new HColumnDescriptor(Constants.HBASE_FAMILY_COORDINATES));
 					descriptor.addFamily(new HColumnDescriptor(Constants.HBASE_FAMILY_ELEV));
+					descriptor.addFamily(new HColumnDescriptor(Constants.HBASE_FAMILY_COLOR));
 					
 					Admin admin = connection.getAdmin(); 
 					
@@ -93,10 +100,17 @@ public class SparkApp {
 						
 						while(partition.hasNext()) {
 							Double[] record = partition.next();
+							int r = 251 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 4;
+							int g = 116 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 139;
+							int b = 101 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 154;
+							System.out.println("color : " + r + ' ' + g + ' ' + b);
+							String colorHex = String.format("#%02x%02x%02x", r, g, b);
+							
 							Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
 							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
 							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
-							put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+							//put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+							put.addColumn(Constants.HBASE_FAMILY_COLOR, Bytes.toBytes("color"), Bytes.toBytes(colorHex));
 							try {
 								table.put(put);
 							} catch (IOException e) {
