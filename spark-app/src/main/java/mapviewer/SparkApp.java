@@ -1,7 +1,6 @@
 package mapviewer;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -11,14 +10,18 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.TableInputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+
+import scala.Tuple2;
 
 public class SparkApp {
 	
@@ -29,22 +32,25 @@ public class SparkApp {
 			SparkConf conf = new SparkConf().setAppName("Map Viewer");
 			JavaSparkContext context = new JavaSparkContext(conf);
 			
+			HBaseConnectionFactory hbaseConnectionFactory = new HBaseConnectionFactory();
+			
 			switch(args[0]) {
-				case "minMaxAnalysis": {
+				case "analysis": {
 					inputPath = "/raw_data/dem3_lat_lng.txt";
-					JavaRDD<String> rdd = context.textFile(inputPath);
-					JavaRDD<Double[]> rddAnalysis = rdd
-							.map(new mapviewer.dem3.Mapper())
-							.filter(new mapviewer.dem3.Filter());
+					
+					JavaPairRDD<Tuple2<Double, Double>, Double> analysis = context.textFile(inputPath)
+							.mapToPair(new mapviewer.dem3.Mapper())
+							.filter(new mapviewer.dem3.Filter())
+							.distinct();
 
-					Double[] latAnalysis = rddAnalysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_LAT));
-					Double[] lngAnalysis = rddAnalysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_LNG));
-					Double[] elevationAnalysis = rddAnalysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_ELEVATION));
+					/*Tuple2<Double, Double> latAnalysis = analysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_LAT));
+					Tuple2<Double, Double> lngAnalysis = analysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_LNG));
+					Tuple2<Double, Double> elevationAnalysis = analysis.reduce(new mapviewer.dem3.minmaxanalysis.Reducer(Constants.INPUT_INDEX_ELEVATION));
 
 					System.out.println("Latitude: { min:" + latAnalysis[0] + ", max: " + latAnalysis[1] + " }");
 					System.out.println("Longitude: { min:" + lngAnalysis[0] + ", max: " + lngAnalysis[1] + " }");
-					System.out.println("Elevation: { min:" + elevationAnalysis[0] + ", max: " + elevationAnalysis[1] + " }");
-					System.out.println("\nRecords number: " + rddAnalysis.count());
+					System.out.println("Elevation: { min:" + elevationAnalysis[0] + ", max: " + elevationAnalysis[1] + " }");*/
+					System.out.println("\nRecords number: " + analysis.count());
 					
 					context.close();
 					break;
@@ -52,16 +58,14 @@ public class SparkApp {
 				
 				case "batch-layer": {
 					inputPath = "/raw_data/dem3_lat_lng.txt";
-					JavaRDD<Double[]> rdd = context.textFile(inputPath)
+					JavaPairRDD<Tuple2<Double, Double>, Double> rdd = context.textFile(inputPath)
 							.repartition(Integer.parseInt(conf.get("spark.executor.instances")))
-							.map(new mapviewer.dem3.Mapper())
-							.filter(new mapviewer.dem3.Filter());
+							.mapToPair(new mapviewer.dem3.Mapper())
+							.filter(new mapviewer.dem3.Filter())
+							.distinct();
 
 					// open database connection
-					Configuration config = HBaseConfiguration.create();
-					config.set("hbase.zookeeper.quorum", Constants.HBASE_IP_ADDRESS);
-					HBaseAdmin.checkHBaseAvailable(config);
-					Connection connection = ConnectionFactory.createConnection(config);
+					Connection connection = hbaseConnectionFactory.createConnection();
 					
 					// table configuration
 					HTableDescriptor descriptor = new HTableDescriptor(TableName.valueOf(Constants.HBASE_TABLE_NAME));
@@ -82,21 +86,25 @@ public class SparkApp {
 		            }
 		            
 		            admin.close();
-		            connection.close();
+		            hbaseConnectionFactory.closeConnection(connection);
+		            
 		            
 		            rdd.foreachPartition((partition) -> {
-		            	Configuration config_lambda = HBaseConfiguration.create();
-						config_lambda.set("hbase.zookeeper.quorum", "10.0.8.3");
-						HBaseAdmin.checkHBaseAvailable(config_lambda);
-						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
-						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
+		            	HBaseConnectionFactory hbaseConnectionFactoryLambda = new HBaseConnectionFactory();
+		            	Connection connectionLambda = hbaseConnectionFactoryLambda.createConnection();
+			            
+						Table table = connectionLambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
 						
 						while(partition.hasNext()) {
-							Double[] record = partition.next();
+							Tuple2<Tuple2<Double, Double>, Double> record = partition.next();
+							Double lat = record._1._1;
+							Double lng = record._1._2;
+							Double elevation = record._2;
+							
 							Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
-							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
-							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
-							put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
+							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(lat.toString()));
+							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(lng.toString()));
+							put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(elevation.toString()));
 							try {
 								table.put(put);
 							} catch (IOException e) {
@@ -105,11 +113,23 @@ public class SparkApp {
 							}
 						}
 						
-						connection_lambda.close();
+						hbaseConnectionFactoryLambda.closeConnection(connectionLambda);
 		            });
+		            
 		            
 					break;
 				}
+				case "serving-layer":
+					Configuration hbaseConf = hbaseConnectionFactory.createConf();
+				    hbaseConf.set(TableInputFormat.INPUT_TABLE, "BounaderMarzinTable");
+				    JavaPairRDD<ImmutableBytesWritable,Result> javaPairRdd = context.newAPIHadoopRDD(hbaseConf, TableInputFormat.class,ImmutableBytesWritable.class, Result.class);
+				    List<Tuple2<ImmutableBytesWritable,Result>> list =  javaPairRdd.take(10);
+				    System.out.println("--- SHOW RESULT ---");
+				    for (Tuple2<ImmutableBytesWritable,Result> t: list) {
+				    	System.out.println(t);
+				    }
+				    
+					break;
 				default: {
 					context.close();
 					throw new Exception("Unknown program name.");
