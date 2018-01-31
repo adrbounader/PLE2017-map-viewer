@@ -11,7 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.18.2",
+    "canvas": "^1.6.9",
     "express": "^4.16.2",
+    "hbase-client": "^1.6.1",
+    "hbase-rpc-client": "^0.1.14",
     "http": "0.0.0",
     "path": "^0.12.7"
   }

@@ -85,7 +85,6 @@ public class SparkApp {
 					
 					// table configuration
 					HTableDescriptor descriptor = new HTableDescriptor(TableName.valueOf(Constants.HBASE_TABLE_NAME));
-					descriptor.addFamily(new HColumnDescriptor(Constants.HBASE_FAMILY_COORDINATES));
 					descriptor.addFamily(new HColumnDescriptor(Constants.HBASE_FAMILY_PIXEL));
 					
 					Admin admin = connection.getAdmin(); 
@@ -111,26 +110,23 @@ public class SparkApp {
 						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
 						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
 						
-						Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
-						
 						String[] blockCoordinates = record._1.split(Constants.SEPARATOR);
-						Tuple2<Integer, Integer> blockCoordinatesInt = new Tuple2(
+						Tuple2<Integer, Integer> blockCoordinatesInt = new Tuple2<Integer, Integer>(
 								Integer.parseInt(blockCoordinates[0]),
 								Integer.parseInt(blockCoordinates[1])
 						);
 						
-						Tuple2<Double, Double> blockCoordinatesDouble = new Tuple2(
+						Tuple2<Double, Double> blockCoordinatesDouble = new Tuple2<Double, Double>(
 								Double.parseDouble(blockCoordinates[0]) / 10000.0,
 								Double.parseDouble(blockCoordinates[1]) / 10000.0
 						);
+
 						
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(blockCoordinates[0]));
-						put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(blockCoordinates[1]));
+						Put put = new Put(Bytes.toBytes(blockCoordinatesDouble._1.toString() + Constants.SEPARATOR + blockCoordinatesDouble._2.toString()));
 						
 						for(Tuple2<String,Double> elevationRecord: record._2) {
-							//
 							String[] pixelCoordinates = elevationRecord._1.split(Constants.SEPARATOR);
-							Tuple2<Integer, Integer> relativePixelCoordinates = new Tuple2(
+							Tuple2<Integer, Integer> relativePixelCoordinates = new Tuple2<Integer, Integer>(
 									Math.abs(Integer.parseInt(pixelCoordinates[0]) - blockCoordinatesInt._1),
 									Math.abs(Integer.parseInt(pixelCoordinates[1]) - blockCoordinatesInt._2)
 							);
@@ -152,37 +148,6 @@ public class SparkApp {
 						table.close();
 						connection_lambda.close();
 		            });
-		            
-		            /*rdd.foreachPartition((partition) -> {
-		            	Configuration config_lambda = HBaseConfiguration.create();
-						config_lambda.set("hbase.zookeeper.quorum", "10.0.8.3");
-						HBaseAdmin.checkHBaseAvailable(config_lambda);
-						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
-						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
-						
-						while(partition.hasNext()) {
-							Double[] record = partition.next();
-							int r = 251 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 4;
-							int g = 116 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 139;
-							int b = 101 * (record[2].intValue() - (-160)) / (7430 - (-160)) + 154;
-							System.out.println("color : " + r + ' ' + g + ' ' + b);
-							String colorHex = String.format("#%02x%02x%02x", r, g, b);
-							
-							Put put = new Put(Bytes.toBytes(System.currentTimeMillis()));
-							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lat"), Bytes.toBytes(record[0].toString()));
-							put.addColumn(Constants.HBASE_FAMILY_COORDINATES, Bytes.toBytes("lng"), Bytes.toBytes(record[1].toString()));
-							//put.addColumn(Constants.HBASE_FAMILY_ELEV, Bytes.toBytes("elev"), Bytes.toBytes(record[2].toString()));
-							put.addColumn(Constants.HBASE_FAMILY_COLOR, Bytes.toBytes("color"), Bytes.toBytes(colorHex));
-							try {
-								table.put(put);
-							} catch (IOException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-						}
-						
-						connection_lambda.close();
-		            });*/
 		            
 					break;
 				}
