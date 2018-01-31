@@ -23,13 +23,14 @@ public class Constants {
 	 */
 	public static final String SEPARATOR = ",";
 	
+	public static final int SIZE_BLOCK = 250;
+	
 	/**
 	 * IP adresse for launch hbase connection.
 	 */
 	public static final String HBASE_IP_ADDRESS = "10.0.8.3";
 	
 	public static final byte[] HBASE_FAMILY_COORDINATES = Bytes.toBytes("coor");
-	public static final byte[] HBASE_FAMILY_ELEV = Bytes.toBytes("elevValue");
-	public static final byte[] HBASE_FAMILY_COLOR = Bytes.toBytes("colorValue");
+	public static final byte[] HBASE_FAMILY_PIXEL = Bytes.toBytes("pixels");
 	public static final byte[] HBASE_TABLE_NAME = Bytes.toBytes("BounaderMarzinTable");
 }

@@ -7,7 +7,7 @@ import mapviewer.Constants;
 /**
  * Lambda function to give to reducer to get min and max of records.
  */
-public class Mapper implements Function<String, Double[]> {
+public class ToDoubleArrayMapper implements Function<String, Double[]> {
 	@Override
 	public Double[] call(String line) throws Exception {
 		Double[] parsedLine = new Double[3];
