@@ -131,16 +131,11 @@ public class SparkApp {
 									Math.abs(Integer.parseInt(pixelCoordinates[1]) - blockCoordinatesInt._2)
 							);
 							
-							int elevation = elevationRecord._2.intValue();
-							int r = 251 * (elevation - (-160)) / (7430 - (-160)) + 4;
-							int g = 116 * (elevation - (-160)) / (7430 - (-160)) + 139;
-							int b = 101 * (elevation - (-160)) / (7430 - (-160)) + 154;
-							String colorHex = String.format("#%02x%02x%02x", r, g, b);
-							
+							Integer elevation = elevationRecord._2.intValue();
 							put.addColumn(
 									Constants.HBASE_FAMILY_PIXEL,
 									Bytes.toBytes(relativePixelCoordinates._1 + Constants.SEPARATOR + relativePixelCoordinates._2),
-									Bytes.toBytes(colorHex)
+									Bytes.toBytes(elevation.toString())
 							);
 						}
 						

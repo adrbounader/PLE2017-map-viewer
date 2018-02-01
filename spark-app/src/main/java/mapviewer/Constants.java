@@ -31,5 +31,5 @@ public class Constants {
 	public static final String HBASE_IP_ADDRESS = "10.0.8.3";
 	
 	public static final byte[] HBASE_FAMILY_PIXEL = Bytes.toBytes("pixels");
-	public static final byte[] HBASE_TABLE_NAME = Bytes.toBytes("BounaderMarzinTable");
+	public static final byte[] HBASE_TABLE_NAME = Bytes.toBytes("BounaderMarzinTable_v2");
 }
