@@ -37,6 +37,12 @@ router.get('/map-blocks', (req, res) => {
     const originLatitude = latitude - (latitude % IMAGE_SIZE);
     const originLongitude = longitude - (longitude % IMAGE_SIZE);
 
+    const client = hbase({		
+        zookeeperHosts: ['beetlejuice'],
+        tcpNoDelay: true		
+    });		
+    client.on('error', err => console.error('HBASE error: ' + err));
+
     const get = new hbase.Get(new Buffer(`${originLatitude},${originLongitude}`));
     
     client.get(HBASE_TABLE, get, (err, res) => {
@@ -60,8 +66,8 @@ router.get('/map-blocks', (req, res) => {
                     const elevationStr = res.cols[pixelName].value.toString();
                     const elevation = parseInt(elevationStr);
                     if (!isNaN(elevation)) {
-                        currentColor.r = ((MAX_COLOR.r - MIN_COLOR.r) * (elevation - MIN_ELEVATION) / (MAX_ELEVATION - MIN_ELEVATION))+ MIN_COLOR.r;
-                        currentColor.g = ((MAX_COLOR.g - MIN_COLOR.g) * (elevation - MIN_ELEVATION) / (MAX_ELEVATION - MIN_ELEVATION))+ MIN_COLOR.g;
+                        currentColor.r = ((MAX_COLOR.r - MIN_COLOR.r) * (elevation - MIN_ELEVATION) / (MAX_ELEVATION - MIN_ELEVATION)) + MIN_COLOR.r;
+                        currentColor.g = ((MAX_COLOR.g - MIN_COLOR.g) * (elevation - MIN_ELEVATION) / (MAX_ELEVATION - MIN_ELEVATION)) + MIN_COLOR.g;
                         currentColor.b = ((MAX_COLOR.b - MIN_COLOR.b) * (elevation - MIN_ELEVATION) / (MAX_ELEVATION - MIN_ELEVATION)) + MIN_COLOR.b;
                     }
                 }
