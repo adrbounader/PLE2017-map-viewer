@@ -15,8 +15,9 @@
     flex-direction: row;
 }
 
-.map-block {
-    border: 1px solid black;
-    box-sizing: border-box;
+.toolkit {
+    background-color: white;
+    padding: 0.3rem;
+    position: fixed;
+    bottom: 0;
 }
-

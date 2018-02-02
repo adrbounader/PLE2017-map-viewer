@@ -1,20 +1,10 @@
-"use strict";
+'use strict';
 
 const express = require('express');
 const hbase = require('hbase-rpc-client');
+const Canvas = require('canvas');
 const router = express.Router();
-/*
 
-							int r = 251 * (elevation - (-160)) / (7430 - (-160)) + 4;
-							int g = 116 * (elevation - (-160)) / (7430 - (-160)) + 139;
-                            int b = 101 * (elevation - (-160)) / (7430 - (-160)) + 154;
-                            */
-
-
-/*
-    Integer posXBlock = posX - (posX % Constants.SIZE_BLOCK);
-    Integer posYBlock = posY - (posY % Constants.SIZE_BLOCK);
-*/
 /**
  * Size of image is 250px
  */
@@ -37,32 +27,33 @@ const MAX_COLOR = {
 const MIN_ELEVATION = -160;
 const MAX_ELEVATION = 7430;
 
+const HBASE_TABLE = 'BounaderMarzinTable';
+
 router.get('/map-blocks', (req, res) => {
-    // TODO calculate good coordinate
-    const get = new hbase.Get(new Buffer('0.3,-78.975'));
+
+    const latitude = req.query.latitude;
+    const longitude = req.query.longitude;
+
+    const originLatitude = latitude - (latitude % IMAGE_SIZE);
+    const originLongitude = longitude - (longitude % IMAGE_SIZE);
+
+    const get = new hbase.Get(new Buffer(`${originLatitude},${originLongitude}`));
     
-    client.get ('BounaderMarzinTable', get, (err, res) => {
+    client.get(HBASE_TABLE, get, (err, res) => {
 
         const canvas = new Canvas(IMAGE_SIZE, IMAGE_SIZE);
         const context = canvas.getContext("2d");
-        const imgData = ctx.createImageData(IMAGE_SIZE, IMAGE_SIZE);
-
-        /*for (var i = 0; i < imgData.data.length; i += 4){
-            imgData.data[i+0]=255;
-            imgData.data[i+1]=0;
-            imgData.data[i+2]=0;
-            imgData.data[i+3]=255;
-        }*/
+        const imgData = context.createImageData(IMAGE_SIZE, IMAGE_SIZE);
 
         for (let l = 0; l < IMAGE_SIZE; l++) {
-            for (let c = 0; c < IMAGE_SIZE; l++) {
+            for (let c = 0; c < IMAGE_SIZE; c++) {
                 const pixelName = `pixels:${l}${SEPARATOR}${c}`;
-                pixelExists = !!res && 
-                              !!res.cols &&
-                              !!res.cols[pixelName] &&
-                              (res.cols[pixelName].value instanceof Buffer);
+                const pixelExists = !!res && 
+                                    !!res.cols &&
+                                    !!res.cols[pixelName] &&
+                                    (res.cols[pixelName].value instanceof Buffer);
 
-                const linearPixelPos = 0; // TODO * 4 (rgba)
+                const linearPixelPos = (c * IMAGE_SIZE + l) * 4;
                 const currentColor = Object.assign({}, MIN_COLOR);
 
                 if (pixelExists) {
@@ -81,9 +72,11 @@ router.get('/map-blocks', (req, res) => {
                 imgData.data[linearPixelPos + 3] = 255;
             }
         }
-        // TODO send image
-        ctx.putImageData(imgData,10,10);
-        // TODO set headers
+
+        context.putImageData(imgData, 0, 0);
+        
+        res.setHeader('Content-Type', 'image/png');
+        canvas.pngStream().pipe(res);
     });
 });
 
