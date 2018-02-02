@@ -67,15 +67,8 @@ public class SparkApp {
 							.map(new mapviewer.dem3.ToDoubleArrayMapper())
 							.filter(new mapviewer.dem3.DoubleArrayFilter())
 							.mapToPair(new mapviewer.dem3.ToTupleMapper())
-							.groupBy((Tuple2<String, Double> record) -> {
-								String[] coordinates = record._1.split(Constants.SEPARATOR);
-								int posX = Integer.parseInt(coordinates[0]);
-								int posY = Integer.parseInt(coordinates[1]);
-								Integer posXBlock = posX - (posX % Constants.SIZE_BLOCK);
-								Integer posYBlock = posY - (posY % Constants.SIZE_BLOCK);
-								
-								return posXBlock.toString() + Constants.SEPARATOR + posYBlock.toString();
-							});
+							.distinct()
+							.groupBy(new mapviewer.dem3.batchlayer.GroupByer());
 
 					// open database connection
 					Configuration config = HBaseConfiguration.create();
@@ -103,46 +96,7 @@ public class SparkApp {
 		            admin.close();
 		            connection.close();
 		            
-		            rdd.foreach((Tuple2<String,Iterable<Tuple2<String,Double>>> record) -> {
-		            	Configuration config_lambda = HBaseConfiguration.create();
-						config_lambda.set("hbase.zookeeper.quorum", "10.0.8.3");
-						HBaseAdmin.checkHBaseAvailable(config_lambda);
-						Connection connection_lambda = ConnectionFactory.createConnection(config_lambda);
-						Table table = connection_lambda.getTable(TableName.valueOf(Constants.HBASE_TABLE_NAME));
-						
-						String[] blockCoordinates = record._1.split(Constants.SEPARATOR);
-						Tuple2<Integer, Integer> blockCoordinatesInt = new Tuple2<Integer, Integer>(
-								Integer.parseInt(blockCoordinates[0]),
-								Integer.parseInt(blockCoordinates[1])
-						);
-						
-						Tuple2<Double, Double> blockCoordinatesDouble = new Tuple2<Double, Double>(
-								Double.parseDouble(blockCoordinates[0]) / 10000.0,
-								Double.parseDouble(blockCoordinates[1]) / 10000.0
-						);
-
-						
-						Put put = new Put(Bytes.toBytes(blockCoordinatesDouble._1.toString() + Constants.SEPARATOR + blockCoordinatesDouble._2.toString()));
-						
-						for(Tuple2<String,Double> elevationRecord: record._2) {
-							String[] pixelCoordinates = elevationRecord._1.split(Constants.SEPARATOR);
-							Tuple2<Integer, Integer> relativePixelCoordinates = new Tuple2<Integer, Integer>(
-									Math.abs(Integer.parseInt(pixelCoordinates[0]) - blockCoordinatesInt._1),
-									Math.abs(Integer.parseInt(pixelCoordinates[1]) - blockCoordinatesInt._2)
-							);
-							
-							Integer elevation = elevationRecord._2.intValue();
-							put.addColumn(
-									Constants.HBASE_FAMILY_PIXEL,
-									Bytes.toBytes(relativePixelCoordinates._1 + Constants.SEPARATOR + relativePixelCoordinates._2),
-									Bytes.toBytes(elevation.toString())
-							);
-						}
-						
-						table.put(put);
-						table.close();
-						connection_lambda.close();
-		            });
+		            rdd.foreach(new mapviewer.dem3.batchlayer.ForEacher());
 		            
 					break;
 				}
